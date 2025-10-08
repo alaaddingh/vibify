@@ -1,28 +1,71 @@
-// app/api/spotify/route.ts — returns an ordered list of tracks,
-// one per word in the provided sentence.
-export const runtime = "nodejs"; // Buffer required (Edge lacks Buffer)
+export const runtime = "nodejs";
+
+const STOPWORD_OVERRIDES: Record<string, string> = {
+  i: '7wdzLe2Gsx1RGqbvYZHASz', am: '5omYVLodGmaxnhua99xIE8', you: '0hcW7qPqWWJc8189OaqQvX', he: '5MES8pWN75QiZaFCdaHtp1', she: '6SQLk9HSNketfgs2AyIiMs', it: '5RMlyZp5bVeo4Pjoab6Puw', we: '21ZnJc0Dzia8z32HTLuN0Y', they: '5HiVagjTjqdvu3Ke2aqMc7',
+  a: '3fbyI27JXFkYK4hL1NSLei',
+  me: '2Rk4JlNc2TPmZe2af99d45', is: '01xk3w0V2OxuUDfE8y98HV', was: '01xk3w0V2OxuUDfE8y98HV', were: '1Q7G91IUn88PmpTnpm467S',
+   on: '0fZRNhPJ4AGmwY7rkpdbqK', at: '23lpXblF7QUq7iRA5s4NRO', to: '', from: '', for: '', of: '', by: '', with: '',
+  and: '', or: '', but: '',
+  do: '', does: '', did: '', have: '', has: '', had: '',
+  can: '', could: '', should: '', would: '', will: '',
+  not: '', no: '', yes: '',
+
+};
+
+async function findExactTrack(word: string, token: string) {
+  const w = word.toLowerCase();
+
+  // 1) Stopword override path
+  if (w in STOPWORD_OVERRIDES) {
+    const id = STOPWORD_OVERRIDES[w];
+    if (!id) return null; // explicitly skip this word
+    const r = await fetch(`https://api.spotify.com/v1/tracks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    return await r.json();
+  }
+
+  // 2) Exact title search path
+  const queries = [`track:"${word}"`, word]; // quoted, then general
+  for (const q of queries) {
+    for (let offset = 0; offset < 10000; offset += 50) {
+      const url =
+        "https://api.spotify.com/v1/search?" +
+        new URLSearchParams({
+          q,
+          type: "track",
+          limit: "50",
+          offset: String(offset),
+        });
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const data = await res.json();
+      const items = data?.tracks?.items ?? [];
+      const exact =
+        items.find((t: any) => (t?.name || "").toLowerCase().trim() === w) || null;
+      if (exact) return exact;
+      if (items.length < 50) break; // no more pages
+    }
+  }
+  return null;
+}
 
 export async function GET(req: Request) {
-  const params = new URL(req.url).searchParams;
+  const url = new URL(req.url);
   const sentence =
-    (params.get("vibe") || params.get("sentence") || params.get("q") || "").trim();
+    url.searchParams.get("vibe") ||
+    url.searchParams.get("sentence") ||
+    url.searchParams.get("q") ||
+    url.searchParams.get("word") ||
+    "";
+  const words = sentence.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return Response.json([]);
 
-  if (!sentence) {
-    return Response.json({ error: "Missing 'vibe' (sentence) query param" }, { status: 400 });
-  }
-
-  // Normalize to words, stripping punctuation; keep order
-  const words = sentence
-    .split(/\s+/)
-    .map((w) => w.replace(/[^\p{L}\p{N}'’]/gu, "").trim())
-    .filter(Boolean);
-
-  if (words.length === 0) {
-    return Response.json([], { status: 200 });
-  }
-
-  // Acquire app token once
-  const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+  // token
+  const tok = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -33,68 +76,10 @@ export async function GET(req: Request) {
         ).toString("base64"),
     },
     body: "grant_type=client_credentials",
-    cache: "no-store",
-  });
+  }).then((r) => r.json());
+  const token = tok.access_token as string;
 
-  if (!tokenRes.ok) {
-    const t = await tokenRes.text().catch(() => "");
-    console.error("[spotify] token error:", tokenRes.status, t);
-    return Response.json({ error: "Token request failed" }, { status: 500 });
-  }
-
-  const { access_token } = await tokenRes.json();
-
-  // For each word, find an exact title match (case-insensitive) if possible
-  const results = await Promise.all(
-    words.map(async (word) => {
-      const wordLower = word.toLowerCase();
-      const searchParams = new URLSearchParams({
-        q: `track:"${word}"`,
-        type: "track",
-        limit: "50",
-        market: "US",
-      }).toString();
-
-      try {
-        const r = await fetch(`https://api.spotify.com/v1/search?${searchParams}`, {
-          headers: { Authorization: `Bearer ${access_token}` },
-          cache: "no-store",
-        });
-
-        if (!r.ok) {
-          const tt = await r.text().catch(() => "");
-          console.warn("[spotify] search error for word:", word, r.status, tt);
-          return null;
-        }
-
-        const data = await r.json();
-        const items = data?.tracks?.items ?? [];
-        if (!items.length) return null;
-
-        // Prefer an exact, case-insensitive title match; fallback to first result
-        const exact = items.find((t: any) => t?.name?.trim()?.toLowerCase() === wordLower) || items[0];
-
-        // Return a compact object
-        return {
-          id: exact.id,
-          name: exact.name,
-          uri: exact.uri,
-          external_url: exact.external_urls?.spotify,
-          artists: (exact.artists || []).map((a: any) => ({ id: a.id, name: a.name })),
-          album: {
-            id: exact.album?.id,
-            name: exact.album?.name,
-            images: exact.album?.images || [],
-          },
-        };
-      } catch (err) {
-        console.warn("[spotify] search exception for word:", word, err);
-        return null;
-      }
-    })
-  );
-
-  // Results align with words; may include nulls if a word has no match
-  return Response.json(results);
+  // exact one-word match per word (with overrides), in order
+  const tracks = await Promise.all(words.map((w) => findExactTrack(w, token)));
+  return Response.json(tracks);
 }
-

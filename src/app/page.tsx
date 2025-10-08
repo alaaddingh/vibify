@@ -2,10 +2,22 @@
 import Logo from "./components/Logo";
 import { FaSpotify } from "react-icons/fa";
 import {useEffect, useState, ChangeEvent } from "react";
+
+type Artist = { id?: string; name?: string };
+type Track = {
+  id?: string;
+  name?: string;
+  uri?: string;
+  external_url?: string;
+  artists?: Artist[];
+  album?: { id?: string; name?: string; images?: Array<{ url: string; width?: number; height?: number }> };
+};
 export default function Home() {
 
   const [entry, setEntry] = useState<string>("");
-  const[reccomendations, setReccomendations] = useState<Array<object>>([]);
+  const[reccomendations, setReccomendations] = useState<Array<Track | null>>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [searched, setSearched] = useState<boolean>(false);
 
 
   useEffect(() => {
@@ -15,8 +27,11 @@ export default function Home() {
 
   const vibify = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    setLoading(true);
+    setSearched(true);
+    setReccomendations([]);
     try {
-      const res = await fetch(`/api/spotify?word=${encodeURIComponent(entry)}`);
+      const res = await fetch(`/api/spotify?vibe=${encodeURIComponent(entry)}`);
       if (!res.ok) {
         let details: any = {};
         try { details = await res.json(); } catch {}
@@ -27,6 +42,8 @@ export default function Home() {
       setReccomendations(recsdata);
     } catch (err) {
       console.error("Network error calling /api/spotify", err);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -40,17 +57,15 @@ export default function Home() {
             size= {0.75}
            />
         <h1 className="pt-2 text-2xl tracking-wide">
-          Playlist Generator
+          Silly Playlist Generator
         </h1>
        </header>
 
-      {/* Body*/}
-      {reccomendations ? (
-        <section className="flex flex-col flex-grow items-center justify-center font-semibold text-lg text-font-primary">
-          {/* Search Bar */}
+      {/* Body */}
+      <section className="flex flex-col flex-grow items-center justify-center font-semibold text-lg text-font-primary">
             <p
-              className="pb-2 mr-35 font-light text-sm"
-              > Search for your vibe.. </p>
+              className="pb-2 mr-25 font-light text-sm"
+              > Write out a wacky sentence.. </p>
           <div className="pb-10 flex items-center flex-row gap-4 font-light text-sm">
             <form onSubmit={vibify} className="flex items-center gap-4 w-full max-w-lg">
               <input 
@@ -69,25 +84,48 @@ export default function Home() {
             </form>
           </div>
 
-
-
-          {/* Description area */}
-          <Logo
-            primary="var(--icons-secondary)"
-            secondary="var(--icons-primary)"
-            margintop={20}
-          />
-          <p className="text-font-secondary text-center">Describe your unique vibe <br></br>
-          to generate a curated and
-          shareable playlist.</p>
+          {/* Results or description */}
+          {loading ? (
+            <p className="text-font-secondary">Loading…</p>
+          ) : reccomendations && reccomendations.filter(Boolean).length > 0 ? (
+            <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {reccomendations.filter(Boolean).map((t: any, idx: number) => (
+                <a
+                  key={t.id || idx}
+                  href={t.external_url || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 p-3 rounded-lg bg-icons-secondary/40 hover:bg-icons-secondary/60 transition-colors"
+                >
+                  {t.album?.images?.[0]?.url ? (
+                    <img src={t.album.images[0].url} alt={t.name} className="w-12 h-12 object-cover rounded" />
+                  ) : (
+                    <div className="w-12 h-12 rounded bg-icons-secondary" />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-base">{t.name}</span>
+                    <span className="text-sm text-font-secondary">
+                      {(t.artists || []).map((a: any) => a.name).join(", ")}
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : searched ? (
+            <p className="text-font-secondary">No exact matches found. Try different words.</p>
+          ) : (
+            <>
+              {/* Description area */}
+              <Logo
+                primary="var(--icons-secondary)"
+                secondary="var(--icons-primary)"
+                margintop={20}
+              />
+              <p className="text-font-secondary text-center">Write out a wacky phrase <br></br>
+              to generate a silly playlist!</p>
+            </>
+          )}
         </section>
-      ) :
-      (
-        <div>
-          pooop
-        </div>
-      )
-    }
 
       {/* Footer */}
       <section className="flex flex-col flex-grow items-center justify-center font-semibold text-md text-font-primary">
