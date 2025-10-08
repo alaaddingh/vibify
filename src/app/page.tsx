@@ -1,103 +1,83 @@
-import Image from "next/image";
-
+"use client"
+import Logo from "./components/Logo";
+import { FaSpotify } from "react-icons/fa";
+import { useState, FormEvent, ChangeEvent } from "react";
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const [entry, setEntry] = useState<string>("");
+
+  //let e: string;
+
+  const foo = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    console.log('submit entry:', entry);
+  };
+  
+  return (
+    <main className="min-h-dvh text-font-primary flex flex-col bg-radial-[at_50%_75%] from-[var(--bg-center)] via-[var(--bg-center)] to-[var(--background)] to-90% ">
+
+      {/* Header */}
+      <header className="flex flex-col items-center mt-10">
+          <Logo
+            primary="var(--icons-primary)"
+            secondary="var(--icons-secondary)"
+            size= {0.75}
+           />
+        <h1 className="pt-2 text-2xl tracking-wide">
+          Playlist Generator
+        </h1>
+       </header>
+
+      {/* Body*/}
+      <section className="flex flex-col flex-grow items-center justify-center font-semibold text-lg text-font-primary">
+        {/* Search Bar */}
+          <p
+            className="pb-2 mr-35 font-light text-sm"
+            > Search for your vibe.. </p>
+        <div className="pb-10 flex items-center flex-row gap-4 font-light text-sm">
+          <form onSubmit={foo} className="flex items-center gap-4 w-full max-w-lg">
+            <input 
+              type="search"
+              placeholder="e.g, Sea Sailing Playlist.."
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEntry(e.target.value)}
+              value={entry}
+              className="p-2 bg-icons-secondary border-1 rounded-lg flex-1"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <button
+              type="submit"
+              className="p-2 bg-icons-primary w-15 rounded-lg"
+            >
+              GO
+            </button>
+          </form>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+
+
+        {/* Description area */}
+        <Logo
+          primary="var(--icons-secondary)"
+          secondary="var(--icons-primary)"
+          margintop={20}
+         />
+        <p className="text-font-secondary text-center">Describe your unique vibe <br></br>
+         to generate a curated and
+         shareable playlist.</p>
+      </section>
+
+      {/* Footer */}
+      <section className="flex flex-col flex-grow items-center justify-center font-semibold text-md text-font-primary">
+
+          <div className="w-3/4 h-px bg-font-secondary/40 my-6" />
+          <div className="flex items-center gap-4">
+            <FaSpotify
+              style={{color: "var(--icons-primary)", scale: 2}}
+            />
+            <p>Powered by Spotify</p>
+          </div>
+      </section>
+    </main>
+
+
   );
 }
